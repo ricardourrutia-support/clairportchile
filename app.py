@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 from io import StringIO, BytesIO
@@ -6,13 +7,12 @@ from processor import procesar_global, clean_cols
 # =====================================================
 # 🔧 CONFIGURACIÓN DE PÁGINA
 # =====================================================
-st.set_page_config(page_title="CLAIRPORT – Consolidado Global", layout="wide")
-st.title("📊 Consolidado Global Aeroportuario – CLAIRPORT")
+st.set_page_config(page_title="CLAIRPORT - Consolidado Global", layout="wide")
+st.title("📊 Consolidado Global Aeroportuario - CLAIRPORT")
 
 # =====================================================
 # 📥 FUNCIONES DE LECTURA
 # =====================================================
-
 def read_generic_csv(uploaded_file):
     raw = uploaded_file.read()
     uploaded_file.seek(0)
@@ -29,8 +29,7 @@ def read_auditorias_csv(uploaded_file):
 # =====================================================
 # 📁 CARGA DE ARCHIVOS
 # =====================================================
-
-st.header("📥 Cargar Archivos – Todos obligatorios")
+st.header("📥 Cargar Archivos - Todos obligatorios")
 
 col1, col2 = st.columns(2)
 
@@ -51,7 +50,6 @@ with col2:
 # =====================================================
 # 📅 FECHAS
 # =====================================================
-
 st.header("📅 Seleccionar Rango de Fechas")
 
 c1, c2 = st.columns(2)
@@ -71,10 +69,8 @@ st.divider()
 # =====================================================
 # 🚀 BOTÓN PROCESAR
 # =====================================================
-
 if st.button("🚀 Procesar Consolidado Global", type="primary"):
 
-    # Validar carga
     required = [
         ventas_file, perf_file, auditorias_file, offtime_file,
         dur90_file, dur30_file, inspecciones_file,
@@ -85,7 +81,6 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
         st.error("❌ Debes cargar TODOS los archivos antes de procesar.")
         st.stop()
 
-    # --- LECTURA ---
     try:
         df_ventas = pd.read_excel(ventas_file) if ventas_file.name.endswith(".xlsx") else read_generic_csv(ventas_file)
         df_perf = read_generic_csv(perf_file)
@@ -97,12 +92,10 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
         df_aband = pd.read_excel(abandonados_file)
         df_resc = read_generic_csv(rescates_file)
         df_wa = read_generic_csv(whatsapp_file)
-
     except Exception as e:
         st.error(f"❌ Error leyendo archivos: {e}")
         st.stop()
 
-    # --- PROCESAMIENTO ---
     try:
         df_diario, df_sem, df_periodo, df_transp = procesar_global(
             df_ventas, df_perf, df_aud, df_off,
@@ -112,20 +105,15 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
         )
         
         st.success("✅ Consolidado generado con éxito")
-
         st.subheader("📅 Diario")
         st.dataframe(df_diario)
-
         st.subheader("📆 Semanal")
         st.dataframe(df_sem)
-
         st.subheader("📊 Periodo")
         st.dataframe(df_periodo)
-
         st.subheader("📐 Vista Traspuesta")
         st.dataframe(df_transp)
 
-        # DESCARGA
         output = BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
             df_diario.to_excel(writer, index=False, sheet_name="Diario")
@@ -150,15 +138,12 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
 
     except Exception as e:
         st.error(f"❌ Error procesando datos: {e}")
-        
-        # === DIAGNÓSTICO DE ERRORES ===
         st.divider()
         st.warning("⚠️ Se detectó un error. Despliega el diagnóstico abajo para encontrar la causa.")
         
         with st.expander("🔍 DIAGNÓSTICO DE COLUMNAS (Clic para abrir)"):
             st.write("El sistema verificará las columnas numéricas críticas.")
             
-            # Chequeo Performance
             st.write("**1. Verificando Performance:**")
             cols_check = ["CSAT", "NPS Score", "Firt (h)", "firt_pct", "Furt (h)", "furt_pct"]
             df_p_clean = clean_cols(df_perf.copy())
@@ -166,21 +151,18 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
             
             for c in cols_check:
                 if c in df_p_clean.columns:
-                    # Intentar conversión
                     try:
                         temp = (df_p_clean[c].astype(str)
                                 .str.replace(",", ".", regex=False)
                                 .str.replace("%", "", regex=False)
                                 .str.strip())
                         pd.to_numeric(temp)
-                        st.caption(f"✅ Columna `{c}`: OK (convertible a número)")
+                        st.caption(f"✅ Columna `{c}`: OK")
                     except Exception as err_col:
-                        st.error(f"❌ Columna `{c}`: FALLO. Contiene valores no numéricos que impiden el promedio. ({err_col})")
-                        st.write("Muestra de valores únicos:", df_p_clean[c].unique()[:10])
+                        st.error(f"❌ Columna `{c}`: FALLO. Contiene texto que impide el promedio.")
                 else:
-                    st.caption(f"⚠️ Columna `{c}` no encontrada (no es error crítico si no existe).")
+                    st.caption(f"⚠️ Columna `{c}` no encontrada.")
 
-            # Chequeo Auditorías
             st.write("**2. Verificando Auditorías:**")
             df_a_clean = clean_cols(df_aud.copy())
             if "Total Audit Score" in df_a_clean.columns:
@@ -193,8 +175,5 @@ if st.button("🚀 Procesar Consolidado Global", type="primary"):
                     st.caption("✅ Columna `Total Audit Score`: OK")
                 except:
                     st.error("❌ Columna `Total Audit Score`: FALLO. No es numérica.")
-                    st.write("Muestra:", df_a_clean["Total Audit Score"].unique()[:5])
             else:
                 st.caption("⚠️ No se encontró la columna 'Total Audit Score'.")
-            
-            st.info("Si ves una ❌ arriba, ese es el archivo que debes corregir en el Excel origen.")
